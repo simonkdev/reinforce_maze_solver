@@ -11,6 +11,7 @@
     git
     python313Packages.tensorflow
     python313Packages.numpy
+    python313Packages.keras
   ];
 
   languages.python = {
