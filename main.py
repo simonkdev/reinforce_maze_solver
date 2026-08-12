@@ -53,13 +53,13 @@ class Reinforce:
                 if maze[i][j] == 1:
                     self.maze_mask[i][j] = [1, 1, 1, 1]
                     if((i-1) >= 0):
-                        self.maze_mask[i-1][j][2] = 1
+                        self.maze_mask[i-1][j][3] = 1
                     if((i+1) <= maze.shape[0]-1):
-                        self.maze_mask[i+1][j][3] = 1
+                        self.maze_mask[i+1][j][2] = 1
                     if((j-1) >= 0):
-                        self.maze_mask[i][j-1][1] = 1
+                        self.maze_mask[i][j-1][0] = 1
                     if((j+1) <= maze.shape[1]-1):
-                        self.maze_mask[i][j+1][0] = 1
+                        self.maze_mask[i][j+1][1] = 1
 
     def mask_policy_matrix(self, maze):
         self.policy_matrix = np.copy(self.raw_policy_matrix)
@@ -134,9 +134,9 @@ reinforce.prepare_policy_mask(maze)
 print("MAZE: ")
 print(maze)
 print("RAW POLICY MATRIX: ")
-print(reinforce.raw_policy_matrix)
+#print(reinforce.raw_policy_matrix)
 print("MAZE MASK: ")
-print(reinforce.maze_mask)
+#print(reinforce.maze_mask)
 print("MASKED POLICY MATRIX: ")
-print(reinforce.policy_matrix)
+print(reinforce.policy_matrix[1][1])
 #reinforce.test_masking(maze)
