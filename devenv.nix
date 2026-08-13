@@ -20,6 +20,7 @@
     venv.enable = true;
     venv.requirements = ''
       maze-utils
+      tqdm
     '';
   };
 }
