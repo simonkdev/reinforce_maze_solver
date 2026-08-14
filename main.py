@@ -15,12 +15,6 @@ START = np.array([np.array(np.where(maze == 2)).flatten()])
 END = np.array([np.array(np.where(maze == 3)).flatten()])
 policy = Policy()
 
-
-# one sample run = one 3D matrix
-# one trajectory = one 2D matrix
-# one row = one timestep
-# -> timestep layout:
-# [initial state, action, chosen actions' probability, new state, new reward, G_t]
 @dataclass
 class timestep:
     initial_state: np.ndarray
@@ -43,7 +37,7 @@ class precursor_loss_object:
     action_prob: float
 
 class Reinforce:
-    def __init__(self, policy, start, end):
+    def __init__(self, policy, start, end, maze):
          self.hello = "Hello World"
          self.policy = policy
          self.terminate_trajectory = False
@@ -55,37 +49,43 @@ class Reinforce:
          self.maze_start = start
          self.maze_end = end
          self.state = start
+         self.maze = maze
+
+    def get_policy_loss(self):
+        self.calculate_cumulative_rewards()
+        self.assemble_cumulative_state_rewards()
+        self.assemble_precursor_loss()
+        return self.calculate_average_policy_loss()
 
 
-    def parse_maze_matrix(self, maze):
-        self.maze = maze
-        self.maze_mask = np.tile([0.0,0.0,0.0,0.0], (maze.shape[0], maze.shape[1], 1))
-        for i in range(maze.shape[0]):
-            for j in range(maze.shape[1]):
-                if maze[i][j] == 1:
+    def parse_maze_matrix(self):
+        self.maze_mask = np.tile([0.0,0.0,0.0,0.0], (self.maze.shape[0], self.maze.shape[1], 1))
+        for i in range(self.maze.shape[0]):
+            for j in range(self.maze.shape[1]):
+                if self.maze[i][j] == 1:
                     self.maze_mask[i][j] = [1, 1, 1, 1]
                     if((i-1) >= 0):
                         self.maze_mask[i-1][j][3] = 1
-                    if((i+1) <= maze.shape[0]-1):
+                    if((i+1) <= self.maze.shape[0]-1):
                         self.maze_mask[i+1][j][2] = 1
                     if((j-1) >= 0):
                         self.maze_mask[i][j-1][0] = 1
-                    if((j+1) <= maze.shape[1]-1):
+                    if((j+1) <= self.maze.shape[1]-1):
                         self.maze_mask[i][j+1][1] = 1
-                if maze[i][j] == 2:
+                if self.maze[i][j] == 2:
                     if self.maze_start[0][1] == 0:
                         self.maze_mask[i][j][1] = 1
-                    if self.maze_start[0][1] == (maze.shape[1] - 1):
+                    if self.maze_start[0][1] == (self.maze.shape[1] - 1):
                         self.maze_mask[i][j][0] = 1
                     if self.maze_start[0][0] == 0:
                         self.maze_mask[i][j][2] = 1
-                    if self.maze_start[0][0] == (maze.shape[0] - 1):
+                    if self.maze_start[0][0] == (self.maze.shape[0] - 1):
                         self.maze_mask[i][j][3] = 1
 
-    def mask_policy_matrix(self, maze):
+    def mask_policy_matrix(self):
         self.policy_matrix = np.copy(self.raw_policy_matrix)
-        for i in range(maze.shape[0]):
-            for j in range(maze.shape[1]):
+        for i in range(self.maze.shape[0]):
+            for j in range(self.maze.shape[1]):
                 mask = self.maze_mask[i][j]
                 idx = 0
                 for int in mask:
@@ -93,16 +93,16 @@ class Reinforce:
                         self.policy_matrix[i][j][idx] = -1e11
                     idx += 1
 
-    def populate_policy_matrix(self, maze):
-        self.raw_policy_matrix = np.tile([0.0,0.0,0.0,0.0], (maze.shape[0], maze.shape[1], 1))
-        for i in range(maze.shape[0]):
-            for j in range(maze.shape[1]):
+    def populate_policy_matrix(self):
+        self.raw_policy_matrix = np.tile([0.0,0.0,0.0,0.0], (self.maze.shape[0], self.maze.shape[1], 1))
+        for i in range(self.maze.shape[0]):
+            for j in range(self.maze.shape[1]):
                 self.raw_policy_matrix[i][j] = self.policy.forward(np.array([[i, j]]))
 
-    def prepare_policy_mask(self, maze):
-        self.parse_maze_matrix(maze)
-        self.populate_policy_matrix(maze)
-        self.mask_policy_matrix(maze)
+    def prepare_policy_mask(self):
+        self.parse_maze_matrix()
+        self.populate_policy_matrix()
+        self.mask_policy_matrix()
         self.policy_matrix = tf.nn.softmax(self.policy_matrix, axis=-1)
 
     def decide(self, probabilities):
@@ -177,11 +177,11 @@ class Reinforce:
                 trajectory[len(trajectory) - 1 - i].expected_reward = expected
                 reward_buffer = expected
 
-    def assemble_cumulative_state_rewards(self, maze):
-        self.cum_state_matrix = np.empty((maze.shape[0], maze.shape[1]), dtype=object)
+    def assemble_cumulative_state_rewards(self):
+        self.cum_state_matrix = np.empty((self.maze.shape[0], self.maze.shape[1]), dtype=object)
 
-        for i in range(maze.shape[0]):
-            for j in range(maze.shape[1]):
+        for i in range(self.maze.shape[0]):
+            for j in range(self.maze.shape[1]):
                 self.cum_state_matrix[i, j] = []
 
         for trajectory in tqdm(self.trajectories):
@@ -191,11 +191,11 @@ class Reinforce:
                 compact = compact_timestep(timestep.expected_reward, timestep.action, timestep.action_prob)
                 self.cum_state_matrix[state_x, state_y].append(compact)
 
-    def assemble_precursor_loss(self, maze):
-        self.precursor_matrix = np.empty((maze.shape[0], maze.shape[1]), dtype=object)
+    def assemble_precursor_loss(self):
+        self.precursor_matrix = np.empty((self.maze.shape[0], self.maze.shape[1]), dtype=object)
 
-        for i in range(maze.shape[0]):
-            for j in range(maze.shape[1]):
+        for i in range(self.maze.shape[0]):
+            for j in range(self.maze.shape[1]):
                 self.precursor_matrix[i, j] = [0, 0, 0, 0]
 
 
@@ -272,10 +272,7 @@ class Reinforce:
 
 
 
-reinforce = Reinforce(policy, START, END)
-reinforce.prepare_policy_mask(maze)
+reinforce = Reinforce(policy, START, END, maze)
+reinforce.prepare_policy_mask()
 reinforce.sample_run()
-reinforce.calculate_cumulative_rewards()
-reinforce.assemble_cumulative_state_rewards(maze)
-reinforce.assemble_precursor_loss(maze)
-print(reinforce.calculate_average_policy_loss())
+print(reinforce.get_policy_loss())
