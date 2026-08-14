@@ -10,6 +10,7 @@ from tqdm import tqdm
 class timestep:
     initial_state: np.ndarray
     action: np.ndarray
+    action_index: int
     action_prob: float
     new_state: np.ndarray
     new_reward: float
@@ -44,9 +45,24 @@ class Reinforce:
 
     def get_policy_loss(self):
         self.calculate_cumulative_rewards()
-        self.assemble_cumulative_state_rewards()
-        self.assemble_precursor_loss()
         return self.calculate_average_policy_loss()
+
+    def get_progress_metrics(self):
+        returns = []
+        successes = 0
+
+        for trajectory in self.trajectories:
+            episode_return = sum(step.new_reward for step in trajectory)
+            returns.append(episode_return)
+
+            if np.array_equal(trajectory[-1].new_state, self.maze_end):
+                successes += 1
+
+        return {
+            "best_return": max(returns),
+            "avg_return": sum(returns) / len(returns),
+            "success_rate": successes / len(self.trajectories),
+        }
 
     def sample_run(self):
         self.prepare_policy_mask()
@@ -109,24 +125,25 @@ class Reinforce:
         self.policy_matrix = tf.nn.softmax(self.policy_matrix, axis=-1)
 
     def decide(self, probabilities):
-        index = np.random.choice(len(global_defs.ACTIONS), p=probabilities)
-        return global_defs.ACTIONS[index], probabilities[index].numpy()
+        probs_np = probabilities.numpy()
+        index = np.random.choice(len(global_defs.ACTIONS), p=probs_np)
+        return global_defs.ACTIONS[index], index, float(probs_np[index])
 
     def get_action_for_state(self, local_state):
         state_x = local_state[0][0]
         state_y = local_state[0][1]
         probabilities = self.policy_matrix[state_x, state_y]
-        action, action_prob = self.decide(probabilities)
-        return action, action_prob
+        action, action_index, action_prob = self.decide(probabilities)
+        return action, action_index, action_prob
 
     def get_reward_for_new_state(self, new_state):
         if (np.array_equal(new_state, self.maze_end)):
-            return 5.0
-        return -1.0
+            return global_defs.SUCCESS_REWARD
+        return global_defs.PENALTY
 
     def timestep(self):
         current_state = self.state
-        action, action_prob = self.get_action_for_state(current_state)
+        action, action_index, action_prob = self.get_action_for_state(current_state)
 
         new_state = current_state + action
         reward = self.get_reward_for_new_state(new_state)
@@ -136,6 +153,7 @@ class Reinforce:
         t = timestep(
             current_state,
             action,
+            action_index,
             action_prob,
             new_state,
             reward,
@@ -249,15 +267,26 @@ class Reinforce:
                 self.precursor_matrix[i][j][3] = precursor_loss_object(action4_sum, action4_amount, action4_probability)
 
     def calculate_average_policy_loss(self):
-        total = 0.0
-        amount = 0
-        for i in range(self.precursor_matrix.shape[0]):
-            for j in range(self.precursor_matrix.shape[1]):
-                precursor_list = self.precursor_matrix[i, j]
-                for precursor in precursor_list:
-                    if precursor.action_prob != 0.0: #ignore filtered/masked actions
-                        loss = -precursor.total_cum_reward * np.log(precursor.action_prob)
-                        total = total+loss
-                        amount = amount + precursor.timestep_amount
-        average = total / amount
-        return average
+        steps = [step for trajectory in self.trajectories for step in trajectory]
+        states = np.array([step.initial_state[0] for step in steps], dtype=np.float32)
+        action_indices = np.array([step.action_index for step in steps], dtype=np.int32)
+        rewards = np.array([step.expected_reward for step in steps], dtype=np.float32)
+        state_indices = states.astype(np.int64)
+        masks = self.maze_mask[state_indices[:, 0], state_indices[:, 1]]
+
+        logits = self.policy.model(tf.convert_to_tensor(states, dtype=tf.float32))
+        mask_tensor = tf.convert_to_tensor(masks, dtype=tf.bool)
+        masked_logits = tf.where(
+            mask_tensor,
+            tf.fill(tf.shape(logits), -1e9),
+            logits,
+        )
+        log_probs = tf.nn.log_softmax(masked_logits)
+        selected_log_probs = tf.gather(
+            log_probs,
+            tf.convert_to_tensor(action_indices, dtype=tf.int32),
+            axis=1,
+            batch_dims=1,
+        )
+
+        return tf.reduce_mean(-selected_log_probs * tf.convert_to_tensor(rewards, dtype=tf.float32))

@@ -17,10 +17,12 @@ reinforce = Reinforce(policy, START, END, maze)
 
 losses = []
 for i in range(global_defs.EPOCHS):
+    reinforce.sample_run()
+    metrics = reinforce.get_progress_metrics()
+
     with tf.GradientTape() as tape:
-        reinforce.sample_run()
         loss = reinforce.get_policy_loss()
-    losses.append(loss)
+
     gradients = tape.gradient(
         loss,
         policy.model.trainable_variables
@@ -28,4 +30,7 @@ for i in range(global_defs.EPOCHS):
     policy.optimizer.apply_gradients(
         zip(gradients, policy.model.trainable_variables)
     )
+    losses.append(float(loss.numpy()))
+    print(i, float(loss.numpy()), metrics)
 print(losses)
+#print(reinforce.trajectories)

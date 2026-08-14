@@ -5,12 +5,11 @@ import global_defs
 class Policy:
     def __init__(self):
         self.model = tf.keras.Sequential([
-            tf.keras.layers.Dense(2, activation="relu"),
             tf.keras.layers.Dense(16, activation="relu"),
             tf.keras.layers.Dense(len(global_defs.ACTIONS))
         ])
 
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)#
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.0006)
     def forward(self, state):
         tensor = self.model(state)
         predictions = tensor.numpy()
