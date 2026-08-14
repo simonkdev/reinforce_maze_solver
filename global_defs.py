@@ -7,3 +7,4 @@ ACTIONS = [np.array([0, 1]), np.array([0, -1]), np.array([-1, 0]), np.array([1, 
 EPISODE_LIMIT = 60
 SAMPLING_QUANTITY = 100
 DISCOUNT_VALUE = 0.8
+EPOCHS = 15

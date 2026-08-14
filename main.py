@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-
 import tensorflow as tf
-from tensorflow.dtypes import float32
 import numpy as np
 from maze_utils import mazes
 from policy import Policy
 import global_defs
 from tqdm import tqdm
+from reinforce import Reinforce
 
 generator = mazes.KruskalMaze(n_x=global_defs.MAZE_HEIGHT, n_y=global_defs.MAZE_WIDTH)
 
@@ -14,265 +13,19 @@ maze = generator.maze
 START = np.array([np.array(np.where(maze == 2)).flatten()])
 END = np.array([np.array(np.where(maze == 3)).flatten()])
 policy = Policy()
-
-@dataclass
-class timestep:
-    initial_state: np.ndarray
-    action: np.ndarray
-    action_prob: float
-    new_state: np.ndarray
-    new_reward: float
-    expected_reward: float
-
-@dataclass
-class compact_timestep:
-    expected_reward: float
-    action: np.ndarray
-    action_prob: float
-
-@dataclass
-class precursor_loss_object:
-    total_cum_reward: float
-    timestep_amount: int
-    action_prob: float
-
-class Reinforce:
-    def __init__(self, policy, start, end, maze):
-         self.hello = "Hello World"
-         self.policy = policy
-         self.terminate_trajectory = False
-         self.steps = 0
-         self.timesteps = []
-         self.trajectories = []
-         self.need_clear_trajectories = False
-         self.trajectory_count = 0
-         self.maze_start = start
-         self.maze_end = end
-         self.state = start
-         self.maze = maze
-
-    def get_policy_loss(self):
-        self.calculate_cumulative_rewards()
-        self.assemble_cumulative_state_rewards()
-        self.assemble_precursor_loss()
-        return self.calculate_average_policy_loss()
-
-
-    def parse_maze_matrix(self):
-        self.maze_mask = np.tile([0.0,0.0,0.0,0.0], (self.maze.shape[0], self.maze.shape[1], 1))
-        for i in range(self.maze.shape[0]):
-            for j in range(self.maze.shape[1]):
-                if self.maze[i][j] == 1:
-                    self.maze_mask[i][j] = [1, 1, 1, 1]
-                    if((i-1) >= 0):
-                        self.maze_mask[i-1][j][3] = 1
-                    if((i+1) <= self.maze.shape[0]-1):
-                        self.maze_mask[i+1][j][2] = 1
-                    if((j-1) >= 0):
-                        self.maze_mask[i][j-1][0] = 1
-                    if((j+1) <= self.maze.shape[1]-1):
-                        self.maze_mask[i][j+1][1] = 1
-                if self.maze[i][j] == 2:
-                    if self.maze_start[0][1] == 0:
-                        self.maze_mask[i][j][1] = 1
-                    if self.maze_start[0][1] == (self.maze.shape[1] - 1):
-                        self.maze_mask[i][j][0] = 1
-                    if self.maze_start[0][0] == 0:
-                        self.maze_mask[i][j][2] = 1
-                    if self.maze_start[0][0] == (self.maze.shape[0] - 1):
-                        self.maze_mask[i][j][3] = 1
-
-    def mask_policy_matrix(self):
-        self.policy_matrix = np.copy(self.raw_policy_matrix)
-        for i in range(self.maze.shape[0]):
-            for j in range(self.maze.shape[1]):
-                mask = self.maze_mask[i][j]
-                idx = 0
-                for int in mask:
-                    if (int == 1):
-                        self.policy_matrix[i][j][idx] = -1e11
-                    idx += 1
-
-    def populate_policy_matrix(self):
-        self.raw_policy_matrix = np.tile([0.0,0.0,0.0,0.0], (self.maze.shape[0], self.maze.shape[1], 1))
-        for i in range(self.maze.shape[0]):
-            for j in range(self.maze.shape[1]):
-                self.raw_policy_matrix[i][j] = self.policy.forward(np.array([[i, j]]))
-
-    def prepare_policy_mask(self):
-        self.parse_maze_matrix()
-        self.populate_policy_matrix()
-        self.mask_policy_matrix()
-        self.policy_matrix = tf.nn.softmax(self.policy_matrix, axis=-1)
-
-    def decide(self, probabilities):
-        index = np.random.choice(len(global_defs.ACTIONS), p=probabilities)
-        return global_defs.ACTIONS[index], probabilities[index].numpy()
-
-    def get_action_for_state(self, local_state):
-        state_x = local_state[0][0]
-        state_y = local_state[0][1]
-        probabilities = self.policy_matrix[state_x, state_y]
-        action, action_prob = self.decide(probabilities)
-        return action, action_prob
-
-    def get_reward_for_new_state(self, new_state):
-        if (np.array_equal(new_state, self.maze_end)):
-            return 5.0
-        return -1.0
-
-    def timestep(self):
-        current_state = self.state
-        action, action_prob = self.get_action_for_state(current_state)
-
-        new_state = current_state + action
-        reward = self.get_reward_for_new_state(new_state)
-
-        self.state = new_state
-
-        t = timestep(
-            current_state,
-            action,
-            action_prob,
-            new_state,
-            reward,
-            0.0
-        )
-        self.timesteps.append(t)
-
-        if np.array_equal(new_state, self.maze_end):
-            self.terminate_trajectory = True
-
-    def trajectory(self):
-        self.state = self.maze_start.copy()
-        self.steps = 0
-
-        while not self.terminate_trajectory:
-            self.timestep()
-            self.steps += 1
-
-            if self.steps >= global_defs.EPISODE_LIMIT:
-                self.terminate_trajectory = True
-
-        self.trajectories.append(self.timesteps)
-        self.timesteps = []
-        self.terminate_trajectory = False
-
-    def sample_run(self):
-        if(self.need_clear_trajectories):
-            self.trajectories = []
-            self.need_clear_trajectories = False
-
-        for i in tqdm(range(global_defs.SAMPLING_QUANTITY)):
-            self.trajectory()
-
-        self.trajectory_count = 0
-        self.need_clear_trajectories = True
-
-    def calculate_cumulative_rewards(self):
-        for trajectory in tqdm(self.trajectories):
-            reward_buffer = 0
-            for i in range(len(trajectory)):
-                expected = (reward_buffer * global_defs.DISCOUNT_VALUE) + trajectory[len(trajectory) - 1 - i].new_reward
-                trajectory[len(trajectory) - 1 - i].expected_reward = expected
-                reward_buffer = expected
-
-    def assemble_cumulative_state_rewards(self):
-        self.cum_state_matrix = np.empty((self.maze.shape[0], self.maze.shape[1]), dtype=object)
-
-        for i in range(self.maze.shape[0]):
-            for j in range(self.maze.shape[1]):
-                self.cum_state_matrix[i, j] = []
-
-        for trajectory in tqdm(self.trajectories):
-            for timestep in trajectory:
-                state_x = timestep.initial_state[0][0]
-                state_y = timestep.initial_state[0][1]
-                compact = compact_timestep(timestep.expected_reward, timestep.action, timestep.action_prob)
-                self.cum_state_matrix[state_x, state_y].append(compact)
-
-    def assemble_precursor_loss(self):
-        self.precursor_matrix = np.empty((self.maze.shape[0], self.maze.shape[1]), dtype=object)
-
-        for i in range(self.maze.shape[0]):
-            for j in range(self.maze.shape[1]):
-                self.precursor_matrix[i, j] = [0, 0, 0, 0]
-
-
-        for i in range(self.cum_state_matrix.shape[0]):
-            for j in range(self.cum_state_matrix.shape[1]):
-
-                state_list = self.cum_state_matrix[i, j]
-
-                action1_sum = 0.0
-                action1_amount = 0
-                action1_probability = 0.0
-                action1_prob_grabbed = False
-
-                action2_sum = 0.0
-                action2_amount = 0
-                action2_probability = 0.0
-                action2_prob_grabbed = False
-
-                action3_sum = 0.0
-                action3_amount = 0
-                action3_probability = 0.0
-                action3_prob_grabbed = False
-
-                action4_sum = 0.0
-                action4_amount = 0
-                action4_probability = 0.0
-                action4_prob_grabbed = False
-
-                for ct in state_list:
-                    act = ct.action
-                    if(np.array_equal(act, global_defs.ACTIONS[0])):
-                        action1_sum = action1_sum + ct.expected_reward
-                        action1_amount = action1_amount + 1
-                        if not action1_prob_grabbed:
-                            action1_probability = ct.action_prob
-                            action1_prob_grabbed = True
-                    elif(np.array_equal(act, global_defs.ACTIONS[1])):
-                        action2_sum = action2_sum + ct.expected_reward
-                        action2_amount = action2_amount + 1
-                        if not action2_prob_grabbed:
-                            action2_probability = ct.action_prob
-                            action2_prob_grabbed = True
-                    elif(np.array_equal(act, global_defs.ACTIONS[2])):
-                        action3_sum = action3_sum + ct.expected_reward
-                        action3_amount = action3_amount + 1
-                        if not action3_prob_grabbed:
-                            action3_probability = ct.action_prob
-                            action3_prob_grabbed = True
-                    elif(np.array_equal(act, global_defs.ACTIONS[3])):
-                        action4_sum = action4_sum + ct.expected_reward
-                        action4_amount = action4_amount + 1
-                        if not action4_prob_grabbed:
-                            action4_probability = ct.action_prob
-                            action4_prob_grabbed = True
-
-                self.precursor_matrix[i][j][0] = precursor_loss_object(action1_sum, action1_amount, action1_probability)
-                self.precursor_matrix[i][j][1] = precursor_loss_object(action2_sum, action2_amount, action2_probability)
-                self.precursor_matrix[i][j][2] = precursor_loss_object(action3_sum, action3_amount, action3_probability)
-                self.precursor_matrix[i][j][3] = precursor_loss_object(action4_sum, action4_amount, action4_probability)
-
-    def calculate_average_policy_loss(self):
-        total = 0.0
-        amount = 0
-        for i in range(self.precursor_matrix.shape[0]):
-            for j in range(self.precursor_matrix.shape[1]):
-                precursor_list = self.precursor_matrix[i, j]
-                for precursor in precursor_list:
-                    if precursor.action_prob != 0.0: #ignore filtered/masked actions
-                        loss = -precursor.total_cum_reward * np.log(precursor.action_prob)
-                        total = total+loss
-                        amount = amount + precursor.timestep_amount
-        average = total / amount
-        return average
-
-
-
 reinforce = Reinforce(policy, START, END, maze)
-reinforce.prepare_policy_mask()
-reinforce.sample_run()
-print(reinforce.get_policy_loss())
+
+losses = []
+for i in range(global_defs.EPOCHS):
+    with tf.GradientTape() as tape:
+        reinforce.sample_run()
+        loss = reinforce.get_policy_loss()
+    losses.append(loss)
+    gradients = tape.gradient(
+        loss,
+        policy.model.trainable_variables
+    )
+    policy.optimizer.apply_gradients(
+        zip(gradients, policy.model.trainable_variables)
+    )
+print(losses)
