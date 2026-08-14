@@ -24,11 +24,23 @@ policy = Policy()
 @dataclass
 class timestep:
     initial_state: np.ndarray
-    action: int
+    action: np.ndarray
     action_prob: float
     new_state: np.ndarray
     new_reward: float
     expected_reward: float
+
+@dataclass
+class compact_timestep:
+    expected_reward: float
+    action: np.ndarray
+    action_prob: float
+
+@dataclass
+class precursor_loss_object:
+    total_cum_reward: float
+    timestep_amount: int
+    action_prob: float
 
 class Reinforce:
     def __init__(self, policy, start, end):
@@ -60,6 +72,15 @@ class Reinforce:
                         self.maze_mask[i][j-1][0] = 1
                     if((j+1) <= maze.shape[1]-1):
                         self.maze_mask[i][j+1][1] = 1
+                if maze[i][j] == 2:
+                    if self.maze_start[0][1] == 0:
+                        self.maze_mask[i][j][1] = 1
+                    if self.maze_start[0][1] == (maze.shape[1] - 1):
+                        self.maze_mask[i][j][0] = 1
+                    if self.maze_start[0][0] == 0:
+                        self.maze_mask[i][j][2] = 1
+                    if self.maze_start[0][0] == (maze.shape[0] - 1):
+                        self.maze_mask[i][j][3] = 1
 
     def mask_policy_matrix(self, maze):
         self.policy_matrix = np.copy(self.raw_policy_matrix)
@@ -149,8 +170,99 @@ class Reinforce:
         self.trajectory_count = 0
         self.need_clear_trajectories = True
 
+    def calculate_cumulative_rewards(self):
+        for trajectory in tqdm(self.trajectories):
+            reward_buffer = 0
+            for i in range(len(trajectory)):
+                expected = (reward_buffer * global_defs.DISCOUNT_VALUE) + trajectory[len(trajectory) - 1 - i].new_reward
+                trajectory[len(trajectory) - 1 - i].expected_reward = expected
+                reward_buffer = expected
+
+    def assemble_cumulative_state_rewards(self, maze):
+        self.cum_state_matrix = np.empty((maze.shape[0], maze.shape[1]), dtype=object)
+
+        for i in range(maze.shape[0]):
+            for j in range(maze.shape[1]):
+                self.cum_state_matrix[i, j] = []
+
+        for trajectory in tqdm(self.trajectories):
+            for timestep in trajectory:
+                state_x = timestep.initial_state[0][0]
+                state_y = timestep.initial_state[0][1]
+                compact = compact_timestep(timestep.expected_reward, timestep.action, timestep.action_prob)
+                self.cum_state_matrix[state_x, state_y].append(compact)
+
+    def assemble_precursor_loss(self, maze):
+        self.precursor_matrix = np.empty((maze.shape[0], maze.shape[1]), dtype=object)
+
+        for i in range(maze.shape[0]):
+            for j in range(maze.shape[1]):
+                self.precursor_matrix[i, j] = [0, 0, 0, 0]
+
+
+        for i in range(self.cum_state_matrix.shape[0]):
+            for j in range(self.cum_state_matrix.shape[1]):
+
+                state_list = self.cum_state_matrix[i, j]
+
+                action1_sum = 0.0
+                action1_amount = 0
+                action1_probability = 0.0
+                action1_prob_grabbed = False
+
+                action2_sum = 0.0
+                action2_amount = 0
+                action2_probability = 0.0
+                action2_prob_grabbed = False
+
+                action3_sum = 0.0
+                action3_amount = 0
+                action3_probability = 0.0
+                action3_prob_grabbed = False
+
+                action4_sum = 0.0
+                action4_amount = 0
+                action4_probability = 0.0
+                action4_prob_grabbed = False
+
+                for ct in state_list:
+                    act = ct.action
+                    if(np.array_equal(act, global_defs.ACTIONS[0])):
+                        action1_sum = action1_sum + ct.expected_reward
+                        action1_amount = action1_amount + 1
+                        if not action1_prob_grabbed:
+                            action1_probability = ct.action_prob
+                            action1_prob_grabbed = True
+                    elif(np.array_equal(act, global_defs.ACTIONS[1])):
+                        action2_sum = action2_sum + ct.expected_reward
+                        action2_amount = action2_amount + 1
+                        if not action2_prob_grabbed:
+                            action2_probability = ct.action_prob
+                            action2_prob_grabbed = True
+                    elif(np.array_equal(act, global_defs.ACTIONS[2])):
+                        action3_sum = action3_sum + ct.expected_reward
+                        action3_amount = action3_amount + 1
+                        if not action3_prob_grabbed:
+                            action3_probability = ct.action_prob
+                            action3_prob_grabbed = True
+                    elif(np.array_equal(act, global_defs.ACTIONS[3])):
+                        action4_sum = action4_sum + ct.expected_reward
+                        action4_amount = action4_amount + 1
+                        if not action4_prob_grabbed:
+                            action4_probability = ct.action_prob
+                            action4_prob_grabbed = True
+
+                self.precursor_matrix[i][j][0] = precursor_loss_object(action1_sum, action1_amount, action1_probability)
+                self.precursor_matrix[i][j][1] = precursor_loss_object(action2_sum, action2_amount, action2_probability)
+                self.precursor_matrix[i][j][2] = precursor_loss_object(action3_sum, action3_amount, action3_probability)
+                self.precursor_matrix[i][j][3] = precursor_loss_object(action4_sum, action4_amount, action4_probability)
+
+
+
 
 reinforce = Reinforce(policy, START, END)
 reinforce.prepare_policy_mask(maze)
 reinforce.sample_run()
-print(reinforce.trajectories)
+reinforce.calculate_cumulative_rewards()
+reinforce.assemble_cumulative_state_rewards(maze)
+reinforce.assemble_precursor_loss(maze)
