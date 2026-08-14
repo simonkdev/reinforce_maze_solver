@@ -1,0 +1,20 @@
+{
+  "include": [
+    "."
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".devenv",
+    ".git"
+  ],
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Linux",
+  "venvPath": ".devenv/state",
+  "venv": "venv",
+  "extraPaths": [
+    ".devenv/state/venv/lib/python3.13/site-packages",
+    ".devenv/profile/lib/python3.13/site-packages"
+  ],
+  "typeCheckingMode": "off",
+  "reportMissingModuleSource": "none"
+}
