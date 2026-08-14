@@ -84,7 +84,6 @@ class Reinforce:
 
     def mask_policy_matrix(self, maze):
         self.policy_matrix = np.copy(self.raw_policy_matrix)
-        print(self.policy_matrix.shape)
         for i in range(maze.shape[0]):
             for j in range(maze.shape[1]):
                 mask = self.maze_mask[i][j]
@@ -257,6 +256,19 @@ class Reinforce:
                 self.precursor_matrix[i][j][2] = precursor_loss_object(action3_sum, action3_amount, action3_probability)
                 self.precursor_matrix[i][j][3] = precursor_loss_object(action4_sum, action4_amount, action4_probability)
 
+    def calculate_average_policy_loss(self):
+        total = 0.0
+        amount = 0
+        for i in range(self.precursor_matrix.shape[0]):
+            for j in range(self.precursor_matrix.shape[1]):
+                precursor_list = self.precursor_matrix[i, j]
+                for precursor in precursor_list:
+                    if precursor.action_prob != 0.0: #ignore filtered/masked actions
+                        loss = -precursor.total_cum_reward * np.log(precursor.action_prob)
+                        total = total+loss
+                        amount = amount + precursor.timestep_amount
+        average = total / amount
+        return average
 
 
 
@@ -266,3 +278,4 @@ reinforce.sample_run()
 reinforce.calculate_cumulative_rewards()
 reinforce.assemble_cumulative_state_rewards(maze)
 reinforce.assemble_precursor_loss(maze)
+print(reinforce.calculate_average_policy_loss())
