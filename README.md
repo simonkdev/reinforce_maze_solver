@@ -1,6 +1,6 @@
 # REINFORCE Maze Solver
 
-A small reinforcement learning project that trains a REINFORCE policy to solve grid mazes. The project started as a terminal experiment and now includes two visual interfaces for drawing mazes, generating random mazes, training the agent, and watching the learning metrics update live.
+A small reinforcement learning project that trains a REINFORCE policy to solve grid mazes. The project started as a terminal experiment and now includes a Tkinter interface for drawing mazes, generating random mazes, training the agent, and watching the learning metrics update live.
 
 The focus is intentionally educational: the implementation keeps the algorithm visible instead of hiding it behind a larger RL framework.
 
@@ -12,7 +12,7 @@ The focus is intentionally educational: the implementation keeps the algorithm v
 - Uses distance-progress reward shaping to make learning practical from scratch.
 - Decays sampling temperature during training.
 - Shows training success, returns, path length, and elapsed time.
-- Provides both a browser UI and a Tkinter desktop UI.
+- Provides a Tkinter desktop UI.
 
 ## Project Layout
 
@@ -23,11 +23,8 @@ The focus is intentionally educational: the implementation keeps the algorithm v
 ├── reinforce.py            # REINFORCE rollout, reward, and loss logic
 ├── main.py                 # Terminal training entry point
 ├── ui/
-│   ├── shared/training.py  # Shared training adapter for both UIs
-│   ├── web/                # Local Python web app + static frontend
+│   ├── shared/training.py  # Shared training adapter for UI workflows
 │   └── tk_app.py           # Tkinter desktop app
-├── api/                    # Vercel-style Python API endpoints
-├── vercel.json             # Vercel routing
 └── requirements.txt
 ```
 
@@ -86,36 +83,12 @@ epoch        loss   success   avg return  best return     temp
 
 Training stops early once the sampled batch reaches `100%` success. A final low-temperature evaluation is printed at the end.
 
-## Running The Web UI
-
-```bash
-python ui/web/app.py
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8000
-```
-
-The web UI lets you:
-
-- paint walls, start, end, and empty cells
-- generate a random maze
-- reset to a blank padded maze
-- configure epochs, batch size, episode limit, and seed
-- watch training progress update live
-- inspect the final greedy path
-
-The visual style is intentionally minimal and Nord-inspired.
-
 ## Running The Tkinter UI
 
 ```bash
 python ui/tk_app.py
 ```
-
-The Tkinter app provides the same core workflow as the web UI:
+The Tkinter app provides the interactive workflow:
 
 - draw a padded maze
 - move start and end around the border
@@ -147,12 +120,6 @@ EVAL_TEMP = 0.05
 ```
 
 These settings were tuned for fast, reliable learning on `20x20` inner mazes.
-
-## Deployment Notes
-
-The repository includes Vercel-style API endpoints under `api/` and static routing in `vercel.json`.
-
-The frontend itself is lightweight, but the backend imports TensorFlow. That can be heavy for serverless platforms, depending on build size, cold-start time, and execution limits. The local Python web server is the most reliable demo path.
 
 ## Requirements
 

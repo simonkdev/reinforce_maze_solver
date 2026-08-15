@@ -1,0 +1,46 @@
+name: Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ui-master
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Tk runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y tcl8.6 tk8.6
+      - name: Build Linux artifact
+        run: scripts/build_linux.sh
+      - name: Verify Linux artifact linkage
+        run: |
+          test -x packaging/artifacts/reinforce-maze-lab-linux-x86_64
+          ldd packaging/artifacts/reinforce-maze-lab-linux-x86_64 2>&1 | tee packaging/artifacts/linux-ldd.txt
+          ! grep -q "not found" packaging/artifacts/linux-ldd.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reinforce-maze-lab-linux
+          path: |
+            packaging/artifacts/reinforce-maze-lab-linux-x86_64
+            packaging/artifacts/linux-ldd.txt
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build portable Windows exe
+        shell: pwsh
+        run: scripts\build_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reinforce-maze-lab-windows
+          path: packaging\artifacts\reinforce-maze-lab-windows-x86_64.exe
