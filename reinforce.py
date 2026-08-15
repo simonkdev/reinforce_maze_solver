@@ -143,10 +143,13 @@ class Reinforce:
                     idx += 1
 
     def populate_policy_matrix(self):
-        self.raw_policy_matrix = np.tile([0.0,0.0,0.0,0.0], (self.maze.shape[0], self.maze.shape[1], 1))
-        for i in range(self.maze.shape[0]):
-            for j in range(self.maze.shape[1]):
-                self.raw_policy_matrix[i][j] = self.policy.forward(np.array([[i, j]]))
+        coords = np.indices(self.maze.shape).reshape(2, -1).T.astype(np.float32)
+        predictions = self.policy.model(coords).numpy()
+        self.raw_policy_matrix = predictions.reshape(
+            self.maze.shape[0],
+            self.maze.shape[1],
+            len(global_defs.ACTIONS),
+        )
 
     def prepare_policy_mask(self):
         self.parse_maze_matrix()
@@ -167,9 +170,16 @@ class Reinforce:
         return action, action_index, action_prob
 
     def get_reward_for_new_state(self, new_state):
-        if (np.array_equal(new_state, self.maze_end)):
-            return global_defs.SUCCESS_REWARD
-        return global_defs.PENALTY
+        current = (int(self.state[0][0]), int(self.state[0][1]))
+        new = (int(new_state[0][0]), int(new_state[0][1]))
+
+        progress = self.distance_map[current] - self.distance_map[new]
+        reward = global_defs.PENALTY + (global_defs.PROGRESS_REWARD * progress)
+
+        if np.array_equal(new_state, self.maze_end):
+            reward += global_defs.SUCCESS_REWARD
+
+        return reward
 
     def timestep(self):
         current_state = self.state
