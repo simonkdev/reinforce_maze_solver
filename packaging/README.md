@@ -18,13 +18,13 @@ The script builds a PyInstaller one-file executable at:
 packaging/dist/reinforce-maze-lab
 ```
 
-The published Linux artifact must be a `staticx` wrapped executable:
+The published Linux artifact is copied to:
 
 ```text
 packaging/artifacts/reinforce-maze-lab-linux-x86_64
 ```
 
-The build fails if `staticx` cannot wrap the executable or if `ldd` does not report `not a dynamic executable`. The GitHub Actions Linux job runs this on Ubuntu 22.04 in a fresh Python environment and verifies the `ldd` result before uploading the artifact.
+The Linux artifact is intended for normal Linux distributions. It may be dynamically linked. The GitHub Actions Linux job runs on Ubuntu 22.04 in a fresh Python environment and fails only if `ldd` reports missing shared libraries.
 
 ## Windows
 

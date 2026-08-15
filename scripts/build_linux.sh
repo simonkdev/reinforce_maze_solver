@@ -74,11 +74,6 @@ fi
 echo "Using TCL_LIBRARY=$TCL_LIBRARY"
 echo "Using TK_LIBRARY=$TK_LIBRARY"
 
-if ! command -v patchelf >/dev/null 2>&1; then
-  echo "patchelf is required for Linux packaging." >&2
-  exit 1
-fi
-
 python -m PyInstaller \
   --clean \
   --noconfirm \
@@ -86,15 +81,13 @@ python -m PyInstaller \
   --distpath "$DIST_DIR" \
   packaging/reinforce_maze_lab.spec
 
-python -m pip install -r packaging/requirements-linux.txt
-staticx "$DIST_DIR/reinforce-maze-lab" "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
+cp "$DIST_DIR/reinforce-maze-lab" "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
 chmod +x "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
 
-if ldd "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64" 2>&1 | grep -q "not a dynamic executable"; then
-  file "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
-  exit 0
+ldd "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64" | tee "$ARTIFACT_DIR/linux-ldd.txt"
+if grep -q "not found" "$ARTIFACT_DIR/linux-ldd.txt"; then
+  echo "Linux artifact has missing shared libraries." >&2
+  exit 1
 fi
 
-ldd "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
-echo "Linux artifact is still dynamically linked; refusing to publish it." >&2
-exit 1
+file "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"

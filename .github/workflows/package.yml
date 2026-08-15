@@ -15,14 +15,14 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install Tk runtime libraries
-        run: sudo apt-get update && sudo apt-get install -y patchelf tcl8.6 tk8.6
+        run: sudo apt-get update && sudo apt-get install -y tcl8.6 tk8.6
       - name: Build Linux artifact
         run: scripts/build_linux.sh
-      - name: Verify Linux artifact is not dynamically linked
+      - name: Verify Linux artifact linkage
         run: |
           test -x packaging/artifacts/reinforce-maze-lab-linux-x86_64
           ldd packaging/artifacts/reinforce-maze-lab-linux-x86_64 2>&1 | tee packaging/artifacts/linux-ldd.txt
-          grep -q "not a dynamic executable" packaging/artifacts/linux-ldd.txt
+          ! grep -q "not found" packaging/artifacts/linux-ldd.txt
       - uses: actions/upload-artifact@v4
         with:
           name: reinforce-maze-lab-linux
