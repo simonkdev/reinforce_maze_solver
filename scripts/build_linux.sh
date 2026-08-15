@@ -74,6 +74,11 @@ fi
 echo "Using TCL_LIBRARY=$TCL_LIBRARY"
 echo "Using TK_LIBRARY=$TK_LIBRARY"
 
+if ! command -v patchelf >/dev/null 2>&1; then
+  echo "patchelf is required for Linux packaging." >&2
+  exit 1
+fi
+
 python -m PyInstaller \
   --clean \
   --noconfirm \
