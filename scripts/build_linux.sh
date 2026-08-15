@@ -40,13 +40,15 @@ python -m PyInstaller \
   --distpath "$DIST_DIR" \
   packaging/reinforce_maze_lab.spec
 
-if python -m pip install -r packaging/requirements-linux.txt; then
-  if staticx "$DIST_DIR/reinforce-maze-lab" "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"; then
-    chmod +x "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
-    file "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
-    exit 0
-  fi
+python -m pip install -r packaging/requirements-linux.txt
+staticx "$DIST_DIR/reinforce-maze-lab" "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
+chmod +x "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
+
+if ldd "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64" 2>&1 | grep -q "not a dynamic executable"; then
+  file "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
+  exit 0
 fi
 
-tar -C "$DIST_DIR" -czf "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64.tar.gz" reinforce-maze-lab
-echo "staticx wrapping was unavailable; wrote $ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64.tar.gz"
+ldd "$ARTIFACT_DIR/reinforce-maze-lab-linux-x86_64"
+echo "Linux artifact is still dynamically linked; refusing to publish it." >&2
+exit 1

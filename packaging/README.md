@@ -16,19 +16,13 @@ The script builds a PyInstaller one-file executable at:
 packaging/dist/reinforce-maze-lab
 ```
 
-If `staticx` can be installed and can wrap the executable, the final artifact is:
+The published Linux artifact must be a `staticx` wrapped executable:
 
 ```text
 packaging/artifacts/reinforce-maze-lab-linux-x86_64
 ```
 
-That wrapped binary is the closest practical Linux target for NixOS-style portability because TensorFlow ships native shared libraries. If `staticx` is unavailable or cannot wrap the TensorFlow bundle, the script creates:
-
-```text
-packaging/artifacts/reinforce-maze-lab-linux-x86_64.tar.gz
-```
-
-Building from the local Nix/devenv shell can produce bundled libraries with Nix `DT_RUNPATH` entries. `staticx` cannot wrap those libraries reliably, so the local Nix build may fall back to the tarball. Use the GitHub Actions workflow or another minimal non-Nix Linux builder for the best chance of producing the wrapped Linux executable.
+The build fails if `staticx` cannot wrap the executable or if `ldd` does not report `not a dynamic executable`. Building from the local Nix/devenv shell can produce bundled libraries with Nix `DT_RUNPATH` entries that `staticx` refuses to wrap. Use the GitHub Actions workflow or another minimal non-Nix Linux builder for the Linux release artifact.
 
 ## Windows
 
