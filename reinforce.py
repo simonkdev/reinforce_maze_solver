@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from collections import deque
 
 import tensorflow as tf
 import numpy as np
@@ -43,6 +44,33 @@ class Reinforce:
          self.state = start
          self.maze = maze
          self.temp = global_defs.INITIAL_TEMP
+         self.distance_map = self.calculate_distance_map()
+
+    def calculate_distance_map(self):
+        end = (int(self.maze_end[0][0]), int(self.maze_end[0][1]))
+        distances = {end: 0}
+        queue = deque([end])
+
+        while queue:
+            x, y = queue.popleft()
+
+            for action in global_defs.ACTIONS:
+                nx = x + int(action[0])
+                ny = y + int(action[1])
+                point = (nx, ny)
+
+                if point in distances:
+                    continue
+
+                if (
+                    0 <= nx < self.maze.shape[0]
+                    and 0 <= ny < self.maze.shape[1]
+                    and self.maze[nx][ny] != 1
+                ):
+                    distances[point] = distances[(x, y)] + 1
+                    queue.append(point)
+
+        return distances
 
     def get_policy_loss(self):
         self.calculate_cumulative_rewards()
