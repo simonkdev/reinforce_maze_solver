@@ -10,6 +10,8 @@ Run from the repository root:
 scripts/build_linux.sh
 ```
 
+The script creates a clean virtual environment under `packaging/build/venv` before installing dependencies. That keeps the package graph independent from the active shell environment.
+
 The script builds a PyInstaller one-file executable at:
 
 ```text
@@ -22,7 +24,7 @@ The published Linux artifact must be a `staticx` wrapped executable:
 packaging/artifacts/reinforce-maze-lab-linux-x86_64
 ```
 
-The build fails if `staticx` cannot wrap the executable or if `ldd` does not report `not a dynamic executable`. Building from the local Nix/devenv shell can produce bundled libraries with Nix `DT_RUNPATH` entries that `staticx` refuses to wrap. Use the GitHub Actions workflow or another minimal non-Nix Linux builder for the Linux release artifact.
+The build fails if `staticx` cannot wrap the executable or if `ldd` does not report `not a dynamic executable`. The GitHub Actions Linux job runs this on Ubuntu 22.04 in a fresh Python environment and verifies the `ldd` result before uploading the artifact.
 
 ## Windows
 

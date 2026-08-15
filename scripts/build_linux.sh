@@ -7,9 +7,14 @@ cd "$ROOT"
 BUILD_DIR="$ROOT/packaging/build"
 DIST_DIR="$ROOT/packaging/dist"
 ARTIFACT_DIR="$ROOT/packaging/artifacts"
+VENV_DIR="$BUILD_DIR/venv"
 
 mkdir -p "$BUILD_DIR/tmp" "$ARTIFACT_DIR"
 export TMPDIR="$BUILD_DIR/tmp"
+
+python -m venv "$VENV_DIR"
+# shellcheck disable=SC1091
+source "$VENV_DIR/bin/activate"
 
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt -r packaging/requirements-packaging.txt

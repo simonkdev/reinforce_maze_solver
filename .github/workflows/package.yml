@@ -8,20 +8,27 @@ on:
 
 jobs:
   linux:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Install Tk runtime headers
-        run: sudo apt-get update && sudo apt-get install -y python3-tk
+      - name: Install Tk runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y tk tcl
       - name: Build Linux artifact
         run: scripts/build_linux.sh
+      - name: Verify Linux artifact is not dynamically linked
+        run: |
+          test -x packaging/artifacts/reinforce-maze-lab-linux-x86_64
+          ldd packaging/artifacts/reinforce-maze-lab-linux-x86_64 2>&1 | tee packaging/artifacts/linux-ldd.txt
+          grep -q "not a dynamic executable" packaging/artifacts/linux-ldd.txt
       - uses: actions/upload-artifact@v4
         with:
           name: reinforce-maze-lab-linux
-          path: packaging/artifacts/*
+          path: |
+            packaging/artifacts/reinforce-maze-lab-linux-x86_64
+            packaging/artifacts/linux-ldd.txt
 
   windows:
     runs-on: windows-2025
