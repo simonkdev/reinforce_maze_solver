@@ -88,7 +88,6 @@ Training stops early once the sampled batch reaches `100%` success. A final low-
 ```bash
 python ui/tk_app.py
 ```
-
 The Tkinter app provides the interactive workflow:
 
 - draw a padded maze
