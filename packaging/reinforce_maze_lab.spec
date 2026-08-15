@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from pathlib import Path
+import sys
 
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 
 ROOT = Path(SPECPATH).parent
+WINDOWS_CONSOLE = sys.platform.startswith("win")
 
 datas = (
     collect_data_files("tensorflow", include_py_files=False)
@@ -65,7 +67,7 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=WINDOWS_CONSOLE,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

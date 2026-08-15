@@ -40,4 +40,6 @@ The output is a portable executable, not an installer:
 packaging\artifacts\reinforce-maze-lab-windows-x86_64.exe
 ```
 
+The Windows executable intentionally opens a command-line window. TensorFlow startup can take a while, and the console makes import progress and crashes visible instead of looking like a silent hang.
+
 TensorFlow publishes Windows CPU wheels for modern Python versions, so the Windows build installs the normal project dependencies with pip and bundles them into the executable.
