@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install Tk runtime libraries
-        run: sudo apt-get update && sudo apt-get install -y tk tcl
+        run: sudo apt-get update && sudo apt-get install -y tcl8.6 tk8.6
       - name: Build Linux artifact
         run: scripts/build_linux.sh
       - name: Verify Linux artifact is not dynamically linked
