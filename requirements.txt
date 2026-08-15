@@ -1,0 +1,4 @@
+tensorflow
+numpy
+maze-utils
+tqdm
