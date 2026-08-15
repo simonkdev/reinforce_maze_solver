@@ -1,0 +1,39 @@
+name: Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ui-master
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Tk runtime headers
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+      - name: Build Linux artifact
+        run: scripts/build_linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reinforce-maze-lab-linux
+          path: packaging/artifacts/*
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build portable Windows exe
+        shell: pwsh
+        run: scripts\build_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reinforce-maze-lab-windows
+          path: packaging\artifacts\reinforce-maze-lab-windows-x86_64.exe
