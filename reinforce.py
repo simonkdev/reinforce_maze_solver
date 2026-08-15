@@ -3,7 +3,6 @@ from collections import deque
 
 import tensorflow as tf
 import numpy as np
-from policy import Policy
 import global_defs
 from tqdm import tqdm
 
@@ -155,10 +154,10 @@ class Reinforce:
         self.parse_maze_matrix()
         self.populate_policy_matrix()
         self.mask_policy_matrix()
-        self.policy_matrix = tf.nn.softmax(self.policy_matrix / self.temp, axis=-1)
+        self.policy_matrix = tf.nn.softmax(self.policy_matrix / self.temp, axis=-1).numpy()
 
     def decide(self, probabilities):
-        probs_np = probabilities.numpy()
+        probs_np = np.asarray(probabilities)
         index = np.random.choice(len(global_defs.ACTIONS), p=probs_np)
         return global_defs.ACTIONS[index], index, float(probs_np[index])
 
@@ -311,6 +310,7 @@ class Reinforce:
         states = np.array([step.initial_state[0] for step in steps], dtype=np.float32)
         action_indices = np.array([step.action_index for step in steps], dtype=np.int32)
         rewards = np.array([step.expected_reward for step in steps], dtype=np.float32)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-11)
         state_indices = states.astype(np.int64)
         masks = self.maze_mask[state_indices[:, 0], state_indices[:, 1]]
 
