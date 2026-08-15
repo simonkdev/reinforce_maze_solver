@@ -27,7 +27,15 @@ def evaluate_sampled(agent, episodes):
     return metrics
 
 losses = []
-for i in range(global_defs.EPOCHS):
+tqdm.write(
+    f"Training REINFORCE on a {global_defs.MAZE_HEIGHT}x{global_defs.MAZE_WIDTH} maze "
+    f"({global_defs.SAMPLING_QUANTITY} episodes/batch)"
+)
+tqdm.write("-" * 78)
+tqdm.write(f"{'epoch':>5}  {'loss':>10}  {'success':>8}  {'avg return':>11}  {'best return':>11}  {'temp':>7}")
+tqdm.write("-" * 78)
+
+for i in tqdm(range(global_defs.EPOCHS), desc="epochs"):
     reinforce.sample_run()
     metrics = reinforce.get_progress_metrics()
 
@@ -42,8 +50,25 @@ for i in range(global_defs.EPOCHS):
         zip(gradients, policy.model.trainable_variables)
     )
     losses.append(float(loss.numpy()))
-    print(i, float(loss.numpy()), metrics)
+    tqdm.write(
+        f"{i:5d}  "
+        f"{float(loss.numpy()):10.4f}  "
+        f"{metrics['success_rate']:8.2%}  "
+        f"{metrics['avg_return']:11.3f}  "
+        f"{metrics['best_return']:11.3f}  "
+        f"{reinforce.temp:7.3f}"
+    )
     reinforce.update_randomness()
-print(losses)
-print("final_eval", evaluate_sampled(reinforce, 100))
+
+    if metrics["success_rate"] >= 1.0:
+        tqdm.write("-" * 78)
+        tqdm.write(f"Solved: sampled training success reached 100% at epoch {i}.")
+        break
+
+final_eval = evaluate_sampled(reinforce, 100)
+tqdm.write("-" * 78)
+tqdm.write("Final evaluation")
+tqdm.write(f"  success rate: {final_eval['success_rate']:.2%}")
+tqdm.write(f"  avg return:   {final_eval['avg_return']:.3f}")
+tqdm.write(f"  best return:  {final_eval['best_return']:.3f}")
 #print(reinforce.trajectories)

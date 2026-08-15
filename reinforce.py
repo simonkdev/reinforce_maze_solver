@@ -98,7 +98,7 @@ class Reinforce:
             self.trajectories = []
             self.need_clear_trajectories = False
 
-        for i in tqdm(range(global_defs.SAMPLING_QUANTITY)):
+        for i in range(global_defs.SAMPLING_QUANTITY):
             self.trajectory()
 
         self.trajectory_count = 0
@@ -219,7 +219,7 @@ class Reinforce:
         self.terminate_trajectory = False
 
     def calculate_cumulative_rewards(self):
-        for trajectory in tqdm(self.trajectories):
+        for trajectory in self.trajectories:
             reward_buffer = 0
             for i in range(len(trajectory)):
                 expected = (reward_buffer * global_defs.DISCOUNT_VALUE) + trajectory[len(trajectory) - 1 - i].new_reward
