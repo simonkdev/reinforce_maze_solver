@@ -42,6 +42,7 @@ class Reinforce:
          self.maze_end = end
          self.state = start
          self.maze = maze
+         self.temp = global_defs.INITIAL_TEMP
 
     def get_policy_loss(self):
         self.calculate_cumulative_rewards()
@@ -75,6 +76,7 @@ class Reinforce:
 
         self.trajectory_count = 0
         self.need_clear_trajectories = True
+
 
 
     def parse_maze_matrix(self):
@@ -122,7 +124,7 @@ class Reinforce:
         self.parse_maze_matrix()
         self.populate_policy_matrix()
         self.mask_policy_matrix()
-        self.policy_matrix = tf.nn.softmax(self.policy_matrix, axis=-1)
+        self.policy_matrix = tf.nn.softmax(self.policy_matrix / self.temp, axis=-1)
 
     def decide(self, probabilities):
         probs_np = probabilities.numpy()
@@ -281,7 +283,7 @@ class Reinforce:
             tf.fill(tf.shape(logits), -1e9),
             logits,
         )
-        log_probs = tf.nn.log_softmax(masked_logits)
+        log_probs = tf.nn.log_softmax(masked_logits / self.temp)
         selected_log_probs = tf.gather(
             log_probs,
             tf.convert_to_tensor(action_indices, dtype=tf.int32),
@@ -290,3 +292,6 @@ class Reinforce:
         )
 
         return tf.reduce_mean(-selected_log_probs * tf.convert_to_tensor(rewards, dtype=tf.float32))
+
+    def update_randomness(self):
+        self.temp = max(global_defs.MIN_TEMP, self.temp * (1 - global_defs.TEMP_DECAY))
